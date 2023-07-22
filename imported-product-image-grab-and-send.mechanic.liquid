@@ -1,0 +1,193 @@
+{% comment %}
+    Subscriptions:
+        mechanic/user/product
+        user/banma_prod/import+5.minutes
+        mechanic/actions/perform
+{% endcomment %}
+
+{% assign img_array = array %}
+{% assign img_hash = hash %}
+{% assign data_array = array %}
+{% assign email_address = options.email_address_receiver__required%}
+
+{% if event.topic != 'mechanic/actions/perform'%}
+  {% if event.topic contains 'user/product' %}
+    {% assign id = event.data.admin_graphql_api_id %}
+  {% else %}
+    {% assign id = event.data.id %}
+  {% endif %}
+
+  {% capture query %}
+    query {
+      product (id: {{ id | json }}){
+        title
+        description
+        descriptionHtml
+        images (first: 20){
+          nodes {
+            url
+          }
+        }
+        variants (first: 20){
+          nodes {
+            displayName
+          }
+        }
+      }
+    }
+  {% endcapture %}
+
+  {% assign result = query | shopify %}
+
+
+  {% if event.preview %}
+
+    {% capture query %}
+  {"data":  {
+    "product": {
+      "title": "Generic Product Name",
+      "descriptionHtml": "<div id=\"offer-template-0\"></div><p><img alt=\"i2aWi/+syNQCDNr3BMfIHNpR2HmthjPl6grH\" src=\"https://img.alicdn.com/imgextra/i4/1997756991/O1CN01oGduwM21VvUnJzVNX_!!1997756991.jpg\"><img src=\"https://img.alicdn.com/imgextra/i4/1997756991/O1CN01eicHql21VvW5y0IWI_!!1997756991.jpg\" alt=\"双人详情_01.jpg\"></p><p style=\"text-align: center;\"><strong>New double seats will be added on September 5th, 2020, and three seats will not be considered at the moment</strong></p><p> </p><p><img src=\"https://img.alicdn.com/imgextra/i4/1997756991/O1CN01WZOIC921VvW2uycgm_!!1997756991.jpg\" alt=\"双人详情_02.jpg\"><img src=\"https://img.alicdn.com/imgextra/i3/1997756991/O1CN01psA1dG21VvW5y1uG2_!!1997756991.jpg\" alt=\"双人详情_03.jpg\"><img src=\"https://img.alicdn.com/imgextra/i2/1997756991/O1CN01N4gAJn21VvW2uwg8f_!!1997756991.jpg\" alt=\"双人详情_04.jpg\"><img src=\"https://img.alicdn.com/imgextra/i2/1997756991/O1CN01PAKQWe21VvW3vnqFr_!!1997756991.jpg\" alt=\"双人详情_05.jpg\"><img src=\"https://img.alicdn.com/imgextra/i2/1997756991/O1CN01MJkowT21VvW51w8eU_!!1997756991.jpg\" alt=\"双人详情_06.jpg\"><img src=\"https://img.alicdn.com/imgextra/i1/1997756991/O1CN01k3RZjl21VvW2uyYXf_!!1997756991.jpg\" alt=\"双人详情_07.jpg\"><img src=\"https://img.alicdn.com/imgextra/i2/1997756991/O1CN01KPPxm221VvW8Fo9sF_!!1997756991.jpg\" alt=\"双人详情_08.jpg\"><img src=\"https://img.alicdn.com/imgextra/i4/1997756991/O1CN015nn4lA21VvW7R8T5F_!!1997756991.jpg\" alt=\"双人详情_09.jpg\"><img src=\"https://img.alicdn.com/imgextra/i3/1997756991/O1CN01jmdI8721VvR13Errc_!!1997756991.jpg\" alt=\"44.jpg\"></p>",
+      "images": {
+        "nodes": [
+          {
+            "id": "foo",
+            "url": "https://cdn.shopify.com/s/files/1/0375/8968/0263/files/20654892947_1034507628.jpg?v=1686034816"
+          },
+          {
+            "id": "foo",
+            "url": "https://cdn.shopify.com/s/files/1/0375/8968/0263/files/20811827636_1034507628.jpg?v=1686034822"
+          },
+          {
+            "id": "foo",
+            "url": "https://cdn.shopify.com/s/files/1/0375/8968/0263/files/20730904301_1034507628.jpg?v=1686034826"
+          },
+          {
+            "id": "foo",
+            "url": "https://cdn.shopify.com/s/files/1/0375/8968/0263/files/20811863022_1034507628.jpg?v=1686034830"
+          },
+          {
+            "id": "foo",
+            "url": "https://cdn.shopify.com/s/files/1/0375/8968/0263/files/20654901860_1034507628.jpg?v=1686034833"
+          },
+          {
+            "id": "foo",
+            "url": "https://cdn.shopify.com/s/files/1/0375/8968/0263/files/20731129131_1034507628.jpg?v=1686034837"
+          }
+        ]
+      },
+      "variants": {
+        "nodes": [
+          {
+            "displayName": "Same frequency Nordic family living room, small unit, leather art, fabric art, two person solid wood sofa, white wax wood, whole body polished - PU skin / Bipartite"
+          },
+          {
+            "displayName": "Same frequency Nordic family living room, small unit, leather art, fabric art, two person solid wood sofa, white wax wood, whole body polished - PU skin / Triple digit"
+          },
+          {
+            "displayName": "Same frequency Nordic family living room, small unit, leather art, fabric art, two person solid wood sofa, white wax wood, whole body polished - Contact surface leather / Bipartite"
+          },
+          {
+            "displayName": "Same frequency Nordic family living room, small unit, leather art, fabric art, two person solid wood sofa, white wax wood, whole body polished - Contact surface leather / Triple digit"
+          }
+        ]
+      }
+    }
+  }
+  }
+  {% endcapture %}
+
+    {% assign result = query | parse_json %}
+
+  {% endif %}
+
+  {% assign product = result.data.product %}
+
+  {% log product %}
+
+  {% assign body_array = product.descriptionHtml | split: '"'%}
+
+    
+  {% for string in body_array %}
+    {% assign hod = string | slice: 0, 5%}
+    {% if hod != 'https' %}
+      {% continue %}
+    {% else %}
+      {% assign img_array[img_array.size] = string %}
+    {% endif %}
+  {% endfor %}
+
+
+
+  {% for img in product.images.nodes %}
+    {% assign url = img.url | split: '?'%}
+    {% assign img_array[img_array.size] = url[0] %}
+  {% endfor %}
+
+
+  {% for url in img_array %}
+    {% assign fileType = url | slice: -4, 4%}
+    {% assign hashy = hash %}
+    {% assign hashy['url'] = url %}
+    {% assign index = img_hash.size | append: fileType %}
+    {% assign img_hash[index] = hashy %}
+  {% endfor %}
+
+  {% log img_hash %}
+  
+  {% assign file_name = product.title | slice: 0, 10 %}
+
+
+  {% capture email_body %}
+    <p>The following file(s) have been generated:</p>
+    <ul>
+      {% comment %} {% for keyval in action.run.result %}
+        {% assign filename = keyval[0] %}
+        {% assign file = keyval[1] %}
+        <li><a href="{{ file.url }}">{{ filename }}</a> ({{ file.size }} bytes)</li>
+      {% endfor %} {% endcomment %}
+    </ul>
+    <p>-Mechanic</p>
+  {% endcapture %}
+
+  {% action %}
+    {
+      "type": "email",
+      "options": 
+      {
+        "to": {{ email_address | json }},
+        "subject": {{ product.title | append: " image file(s) generated" | json }},
+        "body": {{ email_body | json }},
+        "attachments":   
+        {
+          {{ file_name | escape | append: ".zip" | json }}: {
+            "zip": {
+              "files": {{ img_hash | json }}
+            }
+          }
+        }
+      },
+      "meta": {
+        "product_id": {{ id | json }}
+      }
+    }
+  {% endaction %}
+
+
+{% elsif event.topic == 'mechanic/actions/perform' and action.type == 'email' %}
+
+  {% assign id = event.data.meta.product_id %}
+
+  {% if event.data.run.ok and id %}
+
+    {% log id %}
+    {% action 'event'%}
+      {
+        "topic": "user/banma_prod/variant_info",
+        "data": {
+          "id": {{ id | json }}
+        }
+      }
+    {% endaction %}
+
+  {% endif %}
+{% endif %}

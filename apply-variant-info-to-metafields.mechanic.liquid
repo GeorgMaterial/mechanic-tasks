@@ -1,0 +1,177 @@
+{% comment %}
+    Subscriptions:
+        mechanic/user/product
+        user/banma_prod/variant_info
+
+{%  endcomment %}
+
+{% assign variants = hash %}
+{% assign cursor = nil %}
+
+{% assign inventory = array %}
+
+{% if event.topic contains 'mechanic/user/product' %}
+  {% assign product_id = event.data.admin_graphql_api_id %}
+{% else %}
+  {% assign product_id = event.data.id %}
+{% endif %}
+{% log product_id%}
+
+{% for n in (0..100)%}
+  {% capture query %}
+    query {
+      product (id: {{ product_id | json }}){
+        title
+        variants (first: 10, after: {{ cursor | json }}){
+          pageInfo {
+            hasNextPage
+          }
+          edges {
+            cursor
+            node {
+              sku
+              id
+              title
+              inventoryItem {
+                id
+              }
+            }
+          }
+        }
+      }
+    }
+  {% endcapture %}
+
+  {% assign result = query | shopify %}
+
+  {% for variant_edge in result.data.product.variants.edges %}
+    {% assign node = variant_edge | map: 'node'%}
+    {% assign v_id = node[0].id %}
+    {% assign variants[v_id] = node[0].title %}
+    {% assign inventory[inventory.size] = node[0].inventoryItem.id %}
+  {% endfor %}
+
+  {% if result.data.product.variants.pageInfo.hasNextPage %}
+    {% assign cursor = result.data.product.variants.edges.last.cursor %}
+  {% else %}
+    {% assign product_title = result.data.product.title %}
+    {% break %}
+  {% endif %}
+
+{% endfor %}
+
+
+
+{% if event.preview %}
+  {% capture variants_json %}{
+  "gid://shopify/ProductVariant/40494287159431": "深蓝色3.1转角左贵妃 / 多人",
+  "gid://shopify/ProductVariant/40494287192199": "深蓝色3.1转角右贵妃 / 多人",
+  "gid://shopify/ProductVariant/40494287224967": "深蓝色235组合左贵妃 / 多人",
+  "gid://shopify/ProductVariant/40494287257735": "深蓝色235组合右贵妃 / 多人",
+  "gid://shopify/ProductVariant/40494287290503": "深蓝色单人位 / 多人",
+  "gid://shopify/ProductVariant/40494287323271": "深蓝色1380长方块 / 多人",
+  "gid://shopify/ProductVariant/40494287356039": "深蓝色125方块 / 多人",
+  "gid://shopify/ProductVariant/40494287388807": "深蓝色750中间位方块 / 多人",
+  "gid://shopify/ProductVariant/40494287421575": "单人位+3.1转角 / 多人",
+  "gid://shopify/ProductVariant/40494287454343": "浅蓝色3.1转角左贵妃 / 多人",
+  "gid://shopify/ProductVariant/40494287487111": "浅蓝色235组合左贵妃 / 多人",
+  "gid://shopify/ProductVariant/40494287519879": "其他面料3.1转角 / 多人",
+  "gid://shopify/ProductVariant/40494287552647": "小牛皮3.1转角 / 多人",
+  "gid://shopify/ProductVariant/40494287585415": "小牛皮235组合 / 多人"
+}{% endcapture %}
+
+{% assign variants = variants_json | parse_json %}
+{% assign product_title = "coconordic|flower nor自由组合沙发 北欧日式布艺设计师方块沙" %}
+{% endif %}
+
+{% log variants %}
+
+{% assign hash_keys = variants | keys %}
+
+{% if hash_keys != blank %}
+  {% for key in hash_keys %} 
+
+    {% action 'shopify'%}
+      mutation {
+        metafieldsSet(
+          metafields: [
+            {
+              ownerId: {{ key | json }}
+              namespace: "translate"
+              key: "title"
+              value: {{ variants[key] | json }}
+              type: "single_line_text_field"
+            }
+          ]
+        ) {
+          metafields {
+            id
+            namespace
+            key
+            type
+            value
+            
+          }
+          userErrors {
+            code
+            field
+            message
+          }
+        }
+        productVariantUpdate( input: {
+          id: {{ key | json }}
+          sku: ""
+          inventoryPolicy: CONTINUE
+        }){
+          userErrors {
+            
+            field
+            message
+          }
+        }
+      }
+    {% endaction %}
+
+  {% endfor %}
+
+  {% if product_title != blank %}
+    {% action 'shopify'%}
+      mutation {
+        metafieldsSet(
+          metafields: [
+            {
+              ownerId: {{ product_id | json }}
+              namespace: "translate"
+              key: "name"
+              value: {{ product_title | json }}
+              type: "single_line_text_field"
+            }
+          ]
+        ) {
+          metafields {
+            id
+            namespace
+            key
+            type
+            value
+            
+          }
+          userErrors {
+            
+            field
+            message
+          }
+        }
+      }
+    {% endaction %}
+  {% endif %}
+
+  {% action 'event'%}
+    {
+      "topic": "user/banma_prod/inv_upd",
+      "data":{
+        "inventory": {{ inventory | json }}
+      }
+    }
+  {% endaction %}
+{% endif %}

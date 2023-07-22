@@ -1,0 +1,374 @@
+{% comment %}
+    Subscriptions:
+        mechanic/user/trigger
+        mechanic/user/product
+{% endcomment %}
+
+{% assign variants_to_associate = array %}
+{% assign eiz_profile = options.delivery_profile_id__required %}
+
+{% assign variants_to_edit = array %}
+
+{% unless event.topic contains 'trigger' %}
+
+  {% capture query %}
+    query {
+      product (id: {{ event.data.admin_graphql_api_id | json }}){
+            id
+            title
+            options {
+              name
+              values
+            }
+            metafields(first:15, namespace:"custom"){
+              nodes {
+                key
+                value
+              }
+            }
+            variants (first: 20){
+              
+                nodes {
+                  sku
+                  id
+                  weight
+                  metafields(first: 10){
+                    nodes{
+                      key
+                      value
+                    }
+                  }
+                  selectedOptions {
+                    value
+                  }
+                }
+              
+              
+            }
+          }
+        }
+  {% endcapture %}
+
+  {% assign result = query | shopify %}
+
+  {% if event.preview %}
+
+  {% capture query %}
+    {
+      "data": {
+        "product":{
+          "id":"",
+          "title": "",
+          "options": "",
+          "metafields": {
+            "nodes": [
+              {
+                "key": "product_length",
+                "value":"{\"value\":250.0,\"unit\":\"CENTIMETERS\"}"
+              },
+              {
+                "key": "pile-height",
+                "value": "{\"value\":250.0,\"unit\":\"CENTIMETERS\"}"
+              }
+            ]
+          },
+          "variants":{
+            "nodes": [
+              {
+                "id":"gid://shopify/ProductVariant/1234567890",
+                "deliveryProfile":{
+                  "id":"gid://shopify/DeliveryProfile/7610951239"
+                },
+                "weight": 0,
+                "metafields":{
+                  "nodes": [
+                    {
+                      "key": "variant_height",
+                      "value": "{\"value\":250.0,\"unit\":\"MILLIMETERS\"}"
+                    },
+                    {
+                      "key": "variant_width",
+                      "value":"{\"value\":25.0,\"unit\":\"CENTIMETERS\"}"
+                    {% comment %} },
+                    {
+                      "key": "variant_width",
+                      "value":"{\"value\":25.0,\"unit\":\"CENTIMETERS\"}"
+                    {% endcomment %}
+                }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  {% endcapture %}
+
+  {% assign result = query | parse_json %}
+
+  {% endif %}
+
+  
+  {% assign variants = result.data.product.variants.nodes %}
+  {% assign product = result.data.product %}
+
+{% else %}
+  {% assign variants = array %}
+
+    {% for n in (0..100)%}
+    {% capture query %}
+      query {
+        products (first: 2, after:{{ cursor | json }}, query:"status:'ACTIVE'"){
+          pageInfo {
+            hasNextPage
+          }
+          edges {
+            cursor
+            node{
+              id
+              title
+              options {
+                name
+                values
+              }
+              metafields(first:15, namespace:"custom"){
+                nodes {
+                  key
+                  value
+                }
+              }
+              variants (first: 20){
+                nodes {
+                  sku
+                  weight
+                  id
+                  metafields(first: 10){
+                    nodes{
+                      key
+                      value
+                    }
+                  }
+                  selectedOptions {
+                    value
+                  }
+                }
+              } 
+            }
+          }
+        }
+      }
+    {% endcapture %}
+
+    {% assign result = query | shopify %}
+
+    {% if event.preview %}
+
+  {% capture query %}
+    {
+      "data": {
+        "products": {
+          "edges":[{
+            "node":{
+              "id":"",
+              "title": "",
+              "options": "",
+              "metafields": {
+                "nodes": [
+                  {
+                    "key": "product_length",
+                    "value":"{\"value\":250.0,\"unit\":\"CENTIMETERS\"}"
+                  },
+                  {
+                    "key": "pile-height",
+                    "value": "{\"value\":250.0,\"unit\":\"CENTIMETERS\"}"
+                  }
+                ]
+              },
+              "variants":{
+                "nodes": [
+                  {
+                    "id":"gid://shopify/ProductVariant/1234567890",
+                    "deliveryProfile":{
+                      "id":"gid://shopify/DeliveryProfile/7610951239"
+                    },
+                    "weight": 0,
+                    "metafields":{
+                      "nodes": [
+                        {
+                          "key": "variant_height",
+                          "value": "{\"value\":2500.0,\"unit\":\"MILLIMETERS\"}"
+                        },
+                        {
+                          "key": "variant_width",
+                          "value":"{\"value\":25.0,\"unit\":\"CENTIMETERS\"}"
+                        },
+                        {
+                          "key": "variant_width",
+                          "value":"{\"value\":25.0,\"unit\":\"CENTIMETERS\"}"
+                        
+                    }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }]
+        }
+      }
+    }
+  {% endcapture %}
+
+  {% assign result = query | parse_json %}
+
+  {% endif %}
+    {% assign products = array %}
+
+    {% for product_edge in result.data.products.edges %}
+      {% assign node = product_edge | map: 'node'%}
+      {% assign products[products.size] = node[0] %}
+    {% endfor %}
+
+    {% for product in products %}
+      {% for variant in product.variants.nodes%}
+        {% assign variants[variants.size] = variant %}
+      {% endfor %}
+    {% endfor %}
+
+
+    {% if result.data.products.pageInfo.hasNextPage %}
+      {% assign cursor = result.data.products.edges.last.cursor %}
+    {% else %}
+      {% break %}
+    {% endif %}
+
+  {% endfor %}
+{% endunless%}
+
+
+{% for variant in variants %}
+  {% assign object = hash %}
+  {% assign object['id'] = variant.id %}
+  {% assign barcode = variant.id | split: 'nt/'%}
+  {% assign object['barcode'] = barcode[1] %}
+  {% assign dimensions = array %}
+  {% unless variant.weight > 0 %}
+    {% assign calculate_weight = true %}
+  {% endunless %}
+
+  {% if variant.metafields.nodes != blank %}
+    {% log 'variant metafields exist'%}
+
+    {% for metafield in variant.metafields.nodes %}
+
+      {% if metafield.value contains 'value'%}
+
+        {% assign parsed = metafield.value | parse_json %}
+        {% if parsed.unit == 'CENTIMETERS' %}
+          {% assign dimensions[dimensions.size] = parsed.value | divided_by: 100 %}
+        {% elsif parsed.unit == 'MILLIMETERS'%}
+          {% assign dimensions[dimensions.size] = parsed.value | divided_by: 1000 %}
+        {% endif %}
+
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  {% if dimensions.size < 3 %}
+    {% if product.metafields.nodes != blank %}
+      {% log 'looking at product metafields' %}
+      {% for metafield in product.metafields.nodes %}
+        {% unless metafield.key contains 'seat' or metafield.key contains 'pile' or metafield.key contains 'arm' %}
+          {% if metafield.value contains 'value' %}
+            
+            
+            {% assign parsed = metafield.value | parse_json %}
+            {% if parsed.unit == 'CENTIMETERS' %}
+              {% assign dimensions[dimensions.size] = parsed.value | divided_by: 100 %}
+            {% elsif parsed.unit == 'MILLIMETERS'%}
+              {% assign dimensions[dimensions.size] = parsed.value | divided_by: 1000 %}
+            {% endif %}
+
+          {% endif %}
+        {% endunless%}
+      {% endfor %}
+    {% endif %}
+  {% else %}
+    {% log "3 or dimensions from the variant metafields, ignoring product metafields"%}
+  {% endif %}
+
+  {% if calculate_weight %}
+    {% log variant.weight %}
+    {% if dimensions.size == 3 %}
+      {% assign total = dimensions[0] | times: dimensions[1] | times: dimensions[2] %}
+      {% assign weight = total | times: 250 %}
+      {% assign weight = weight | times: 0.1 | plus: weight | ceil %}
+      
+      {% assign object['weight'] = weight %}
+      {% assign variants_to_edit[variants_to_edit.size] = object %}
+
+      {% unless variant.deliveryProfile.id == eiz_profile %}
+        {% if weight > 7 %}
+          {% assign variants_to_associate[variants_to_associate.size] = variant.id %}
+        {%endif%}
+      {% endunless %}
+
+    {% else %}
+      {% log "Something went wrong and this variant has a weird number of dimensions"%}
+    {% endif %}
+  {% else %}
+    {% assign variants_to_edit[variants_to_edit.size] = object %}
+  {% endif %}
+
+{% endfor %}
+
+{% for item in variants_to_edit %}
+
+
+  {% action 'shopify' %}
+    mutation {
+      productVariantUpdate(
+        input: {
+          id: {{ item['id'] | json }},
+          {% if item['weight'] != blank %}weight: {{ item['weight'] | json }},{% endif %}
+          barcode: {{item['barcode'] | json }}
+        }
+      ) 
+      {
+        productVariant {
+          sku
+          displayName
+          weight
+          barcode
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  {% endaction %}
+{% endfor %}
+
+{% if variants_to_associate != empty %}
+  {% action "shopify" %}
+    mutation {
+      deliveryProfileUpdate(
+        id: {{ eiz_profile | json }}
+        profile: {
+          
+            variantsToAssociate: {{ variants_to_associate | json }}
+          
+        }
+      ) {
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  {% endaction %}
+{% endif %}
+
+

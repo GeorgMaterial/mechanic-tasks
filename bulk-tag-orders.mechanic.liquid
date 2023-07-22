@@ -1,0 +1,95 @@
+{% comment %}
+    Subscriptions:
+        mechanic/user/trigger
+{% endcomment %}
+
+{% assign name_list = options.list_of_order_names__array_required %}
+{% assign tags_to_apply = options.tags_to_apply__array_required %}
+{% assign tags_to_remove = options.tags_to_remove__array_required%}
+{% assign order_ids = array %}
+
+{% for order in name_list %}
+  {% capture query %}
+    query {
+      orders(first:2, query:"name:'{{ order }}'"){
+        edges {
+          node {
+            id
+            name
+          }
+        }
+      }
+    }
+  {% endcapture %}
+
+  {% assign result = query | shopify %}
+
+  {% if event.preview %}
+    {% capture result_json %}
+      {
+        "data" : {
+          "orders": {
+            "edges" : [{
+              "node": {
+                "id": "gid://shopify/Order/1234567890",
+                "name": "#TF5366"
+              }
+            }]
+          }
+        }
+      }
+    {% endcapture %}
+
+    {% assign result = result_json | parse_json %}
+  {% endif %}
+
+  
+
+  {% assign node = result.data.orders.edges[0].node %}
+
+  {% if node.id != blank %}
+    {% unless order_ids contains node.id %}
+      {% assign order_ids[order_ids.size] = node.id %}
+    {% endunless %}
+  {% endif %}
+
+{% endfor %}
+
+{% log order_ids %}
+
+{% for order in order_ids %}
+  
+  {% action "shopify" %}
+    mutation {
+      tagsAdd (
+        id: {{ order | json }}
+        tags: {{ tags_to_apply | json }}
+      ) {
+        node {
+          id
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  {% endaction %}
+  {% action "shopify" %}
+    mutation {
+      tagsRemove (
+        id: {{ order | json }}
+        tags: {{ tags_to_remove | json }}
+      ) {
+        node {
+          id
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  {% endaction %}
+  
+{% endfor %}

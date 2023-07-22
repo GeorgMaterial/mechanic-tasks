@@ -1,0 +1,66 @@
+{% comment %}
+    Subscriptions:
+        mechanic/user/trigger
+        user/unleashed/api_call
+        mechanic/actions/perform
+{% endcomment %}
+
+{% assign baseUrl = options.base_url__required %}
+{% assign endpoint = options.endpoint | append: "/"%}
+{% assign method = options.method %}
+{% assign queryKeyVal = options.query_parameters__keyval%}
+{% assign parameters = array %}
+{% assign paginate = options.paginate__boolean %}
+{% assign page = options.page %}
+
+{% if event.topic contains "api" %}
+  {% assign endpoint = event.data.endpoint | append: "/"%}
+  {% assign method = event.data.method %}
+  {% assign queryKeyVal = event.data.query_hash %}
+  {% assign paginate = event.data.paginate %}
+{% endif %}
+
+{% if paginate %}
+  {% assign endpoint = endpoint | append: page %}  
+{% endif %}
+
+{% assign unleashed_key = options.api_key__required %}
+
+{% assign keys = queryKeyVal | keys %}
+{% for item in keys %}
+  {% assign parameters[parameters.size] = item | append: "=" | append: queryKeyVal[item] %}
+{% endfor %}
+
+{% assign queryString = parameters | join: "&" %}
+{% log queryString %}
+{% assign url = baseUrl | append: endpoint | append: "?" | append: queryString %}
+
+
+{% assign methodSignature = queryString | hmac_sha256: unleashed_key, binary: true %}
+
+{% if event.topic != 'mechanic/actions/perform'%}
+  
+  {% action 'http'%}
+    {
+      "method": {{ method | upcase | json }},
+      "url": {{ url | json }},
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "api-auth-id": {{ options.api-auth-id__required | json }},
+        "api-auth-signature": {{ methodSignature | base64 | json }}
+      } 
+    }
+  {% endaction %}
+{% else %}
+
+  {% if event.data.run.result.status == 200 %}
+    {% action "event" %}
+      {
+        "topic":"user/unleashed/process_prod",
+        "data": {{ action.run.result.body.Items | json}}
+      }
+    {% endaction %}
+  {% endif %}
+{% endif %}
+

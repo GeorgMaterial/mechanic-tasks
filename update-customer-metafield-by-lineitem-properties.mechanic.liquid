@@ -1,0 +1,150 @@
+{% comment %}
+    Subscriptions:
+        shopify/orders/create
+        shopify/orders/paid
+{% endcomment %}
+
+{% comment %}
+  Ordering the task options:
+
+  {{ options.required_product_title }}
+  {{ options.customer_tag_to_apply }}
+  {{ options.metafield_id__required }}
+
+{%endcomment%}
+
+{%assign metafield_key =  options.metafield_key_to_update__required %}
+{%assign metafield_namespace =  options.metafield_namespace_to_update__required %}
+{% assign ignore_props = options.properties_to_ignore__array %}
+
+
+{% capture query %}
+  query {
+    customer (
+      id: {{event.data.customer.admin_graphql_api_id | json}}
+      ){
+        metafield (
+          namespace: {{metafield_namespace | json }}
+          key: {{metafield_key | json }}
+        ) {
+          value
+        }
+      }
+  }
+
+  
+{%endcapture%}
+
+
+{% assign result = query | shopify %}
+
+
+{% if event.preview %}
+  {% capture query %}
+    {
+      "data": {
+        "customer": {
+          "metafield": {
+            "value": "MC2635-2A, 22716-01, 22716-31, Mousse-03, Mousse-01, #BM-5, #7903, #7973, "
+          }
+        }
+      }
+    }
+  {% endcapture %}
+
+  {% assign result = query | parse_json%}
+{% endif %}
+
+{% assign meta_value = result.data.customer.metafield.value %}
+
+{% assign order_name = event.data.name %}
+{% assign line_items = event.data.line_items %}
+{% assign item_names = line_items | map: "title"%}
+{% assign item_properties = line_items | map: "properties"%}
+
+{% if meta_value != blank %}
+  {% for item in line_items %}
+    {% for property in item.properties %}
+      {% if meta_value contains property.value or ignore_props contains property.value %}
+        {% continue %}
+      {% else %}
+        {% assign attribute = property.value | append: ", "%}
+        {% assign meta_value = meta_value | append: attribute %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+{% elsif item_properties != blank %}
+  {%assign meta_value = item_properties | map: "value" | join: ", "%}
+{%endif%}
+
+{% log meta_value %}
+
+{% if options.required_product_title == blank %}
+    {"error": "Fill in 'Required product title'"}
+{% endif %}
+{% assign order_qualifies = false %}
+
+{% if meta_value != blank %}
+  {%for item in line_items %}
+    {% if item.title contains options.required_product_title %}
+      {% assign order_qualifies = true %}
+    {% endif %}
+  {% endfor %}
+{%endif%}
+
+{% assign tag_to_apply = options.customer_tag_to_apply %}
+
+
+
+{% if order_qualifies != true %}
+    {% log "No valid samples ordered/found" %}
+    {% log order_name, item_names %}
+{% else %}
+    {% action "shopify" %}
+        mutation {
+          {% if event.data.customer.tags contains tag_to_apply %}
+          {% else %}
+            tagsAdd(
+              id: {{ event.data.customer.admin_graphql_api_id | json }}
+              tags: {{ tag_to_apply | json }}
+            ) {
+              userErrors {
+              field
+              message
+          }
+        }
+          {% endif %}
+      metafieldsSet(
+        metafields: [
+          {
+            ownerId: {{ event.data.customer.admin_graphql_api_id | json }}
+            namespace: {{ metafield_namespace | json }}
+            key: {{ metafield_key | json }}
+            value: {{ meta_value | json }}
+            type: "multi_line_text_field"
+          }
+        ]
+      ) {
+        metafields {
+          id
+          namespace
+          key
+          type
+          value
+          owner {
+            ... on Customer {
+              id
+            }
+          }
+        }
+        userErrors {
+          code
+          field
+          message
+        }
+      }
+    }
+  {% endaction %}
+    {% log event.data.customer.id, meta_value, tag_to_apply %}
+{% endif %}
+    

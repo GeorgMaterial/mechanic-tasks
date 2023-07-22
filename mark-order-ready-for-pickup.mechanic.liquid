@@ -1,0 +1,145 @@
+{% comment %}
+    Subscriptions:
+        mechanic/user/order
+
+{% endcomment %}
+
+{% assign shipment_tags_and_status = options.shipment_tags_and_status__keyval_required %}
+{% if event.topic contains 'mechanic/user' %}
+  {% assign order_id = order.admin_graphql_api_id %}
+{% elsif event.topic contains 'user/pickup'%}
+  {% assign order_id = event.data.order_id %}
+{% endif %}
+
+
+{% capture query %}
+  query {
+    order(id: {{ order_id | json }}) {
+      id
+      name
+      tags
+      displayFulfillmentStatus
+      fulfillments(first: 10) {
+        id
+        status
+        displayStatus
+        requiresShipping
+        location {
+          name
+        }
+      }
+      fulfillmentOrders(
+        first: 20
+        query: "status:open"
+      ) {
+        nodes {
+          id
+          status
+          deliveryMethod{
+            methodType
+          }
+        }
+      }
+    }
+  }
+{% endcapture %}
+
+{% assign result = query | shopify %}
+
+{% if event.preview %}
+  {% capture result_json %}
+    {
+      "data": {
+        "order": {
+          "id": "gid://shopify/Order/1234567890",
+          "name": "#SAMPLE",
+          "tags": ["ready-to-ship","pickup_specified"],
+          "displayFulfillmentStatus": "FULFILLED",
+          "fulfillments": [
+            {
+              "id": "gid://shopify/Fulfillment/1234567890",
+              "status": "SUCCESS",
+              "displayStatus": null,
+              "requiresShipping": true,
+              "location": {
+                "name": "Warehouse"
+              }
+            }
+          ],
+          "fulfillmentOrders": {
+            "nodes": [
+              {
+                "id": "gid://shopify/FulfillmentOrder/1234567890",
+                "status": "OPEN",
+                "deliveryMethod":{
+                  "methodType": "PICK_UP"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  {% endcapture %}
+
+  {% assign result = result_json | parse_json %}
+{% endif %}
+
+{% assign order = result.data.order %}
+{% assign fulfillment_orders = order.fulfillmentOrders.nodes %}
+
+{% for order_tag in order.tags %}
+  {% if shipment_tags_and_status[order_tag] != blank %}
+    {% assign shipment_status_to_set = shipment_tags_and_status[order_tag] %}
+    {% break %}
+  {% endif %}
+{% endfor %}
+
+{% for order_tag in order.tags %}
+  {% if order_tag == "ready-to-ship" %}
+    {% assign ready = true %}
+    {% break %}
+  {% endif %}
+{% endfor %}
+
+{% unless ready != true %}
+
+  {% assign fulfillment_order_ids_by_location_and_type = hash %}
+
+    {% for fulfillment_order in fulfillment_orders %}
+      {% assign location_and_type
+        = fulfillment_order.assignedLocation.name
+          | append: "|"
+          | append: fulfillment_order.deliveryMethod.methodType
+      %}
+      {% assign fulfillment_order_ids_by_location_and_type[location_and_type]
+        = fulfillment_order_ids_by_location_and_type[location_and_type]
+        | default: array
+        | push: fulfillment_order.id
+      %}
+    {% endfor %}
+
+  {% for keyval in fulfillment_order_ids_by_location_and_type %}
+    {% action "shopify" %}
+      mutation fulfillmentOrderLineItemsPreparedForPickup{
+        fulfillmentOrderLineItemsPreparedForPickup (
+          input: {
+            lineItemsByFulfillmentOrder: [
+              {% for fulfillment_order_id in keyval[1] %}
+                { fulfillmentOrderId: {{ fulfillment_order_id | json }} }
+              {% endfor %}
+            ]
+          }
+        )
+        {
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    {%endaction%}
+  {%endfor%}
+{% else %}
+  {%log "Not tagged 'ready-to-ship'."%}
+{% endunless %}

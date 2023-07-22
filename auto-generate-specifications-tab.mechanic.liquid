@@ -1,0 +1,673 @@
+{% comment %}
+    Subscriptions:
+        mechanic/user/trigger
+        mechanic/user/products
+        mechanic/user/product
+
+{% endcomment %}
+
+{% assign products = array %}
+
+{% unless event.topic contains 'product'%}
+
+  {% assign cursor = nil %}
+  {% for n in (0..100)%}
+    {% capture query %}
+      query {
+        products (first: 2, after:{{ cursor | json }}, query:"status:'ACTIVE'"){
+          pageInfo {
+            hasNextPage
+          }
+          edges {
+            cursor
+            node{
+              id
+              title
+              options {
+                name
+                values
+              }
+              metafields(first:15, namespace: "custom"){
+                nodes {
+                  key
+                  value
+                }
+              }
+              variants (first: 10){
+                edges {
+                  node {
+                    metafields(first: 3, namespace: "custom"){
+                      nodes{
+                        key
+                        value
+                      }
+                    }
+                    selectedOptions {
+                      value
+                    }
+                  }
+                }
+                
+              }
+            }
+          }
+        }
+      }
+    {% endcapture %}
+
+    {% assign result = query | shopify %}
+
+    {% for product_edge in result.data.products.edges %}
+      {% assign node = product_edge | map: 'node'%}
+      {% assign products[products.size] = node[0] %}
+    {% endfor %}
+
+    {% if result.data.products.pageInfo.hasNextPage %}
+      {% assign cursor = result.data.products.edges.last.cursor %}
+    {% else %}
+      {% break %}
+    {% endif %}
+
+  {% endfor %}
+
+  {% if event.preview %}
+
+    {% capture query %}
+    {
+          "data": {
+              "products": {
+                  "edges": [
+                      {
+                          "node": {
+                              "id": "gid://shopify/Product/4887256039559",
+                              "title": "Punch-free Hair dryer organiser",
+                              "options": [
+                                  {
+                                      "name": "Color",
+                                      "values": [
+                                          "pink",
+                                          "navy",
+                                          "light blue",
+                                          "White"
+                                      ]
+                                  }
+                              ],
+                              "metafields": {
+                                  "nodes": [
+                                      {
+                                          "key": "product_length",
+                                          "value": "{\"value\":25.0,\"unit\":\"CENTIMETERS\"}"
+                                      },
+                                      {
+                                          "key": "product_width",
+                                          "value": "{\"value\":11.5,\"unit\":\"CENTIMETERS\"}"
+                                      },
+                                      {
+                                          "key": "product_height",
+                                          "value": "{\"value\":10.0,\"unit\":\"CENTIMETERS\"}"
+                                      },
+                                      {
+                                          "key": "materials",
+                                          "value": "ABS"
+                                      },
+                                      {
+                                          "key": "assembly",
+                                          "value": "false"
+                                      },
+                                      {"key":"wattage","value":"6W (inclusive)-10W (inclusive)"},{"key":"voltage_","value":"111V~240V (inclusive)"},{"key":"lamp_body_material_","value":"Resin"},{"key":"lamp_shade_material_","value":"Glass"},{"key":"bulbs","value":"1x e27"},
+                                      {
+                                        "key": "product_seat_height",
+                                        "value": "{\"value\":10.0,\"unit\":\"CENTIMETERS\"}"
+                                      },
+                                      {
+                                        "key": "pile_height",
+                                        "value": "{\"value\":10.0,\"unit\":\"CENTIMETERS\"}"
+                                      }
+                                  ]
+                              },
+                              "variants": {
+                                  "edges": [
+                                      {
+                                          "node": {
+                                              "metafields": {
+                                                  "nodes": []
+                                              },
+                                              "selectedOptions": [
+                                                  {
+                                                      "value": "pink"
+                                                  }
+                                              ]
+                                          }
+                                      },
+                                      {
+                                          "node": {
+                                              "metafields": {
+                                                  "nodes": []
+                                              },
+                                              "selectedOptions": [
+                                                  {
+                                                      "value": "navy"
+                                                  }
+                                              ]
+                                          }
+                                      },
+                                      {
+                                          "node": {
+                                              "metafields": {
+                                                  "nodes": []
+                                              },
+                                              "selectedOptions": [
+                                                  {
+                                                      "value": "light blue"
+                                                  }
+                                              ]
+                                          }
+                                      },
+                                      {
+                                          "node": {
+                                              "metafields": {
+                                                  "nodes": []
+                                              },
+                                              "selectedOptions": [
+                                                  {
+                                                      "value": "White"
+                                                  }
+                                              ]
+                                          }
+                                      }
+                                  ]
+                              }
+                          },
+                          "cursor": "eyJsYXN0X2lkIjo0ODg3MjU2MDM5NTU5LCJsYXN0X3ZhbHVlIjo0ODg3MjU2MDM5NTU5fQ=="
+                      },
+                      {
+                          "node": {
+                              "id": "gid://shopify/Product/4887434264711",
+                              "title": "Designer Rug | Deep Sea",
+                              "options": [
+                                  {
+                                      "name": "Size",
+                                      "values": [
+                                          "1600MMx2300MM",
+                                          "2000MMx3000MM"
+                                      ]
+                                  }
+                              ],
+                              "metafields": {
+                                  "nodes": [
+                                      {
+                                          "key": "materials",
+                                          "value": "Polyester"
+                                      },
+                                      {
+                                          "key": "on_display",
+                                          "value": "true"
+                                      },
+                                      {
+                                          "key": "pile_height",
+                                          "value": "{\"value\":300.0,\"unit\":\"CENTIMETERS\"}"
+                                      }
+                                  ]
+                              },
+                              "variants": {
+                                  "edges": [
+                                      {
+                                          "node": {
+                                              "metafields": {
+                                                  "nodes": [
+                                                      {
+                                                          "key": "variant_length",
+                                                          "value": "{\"value\":160.0,\"unit\":\"CENTIMETERS\"}"
+                                                      },
+                                                      {
+                                                          "key": "variant_width",
+                                                          "value": "{\"value\":230.0,\"unit\":\"CENTIMETERS\"}"
+                                                      }
+                                                  ]
+                                              },
+                                              "selectedOptions": [
+                                                  {
+                                                      "value": "1600MMx2300MM"
+                                                  }
+                                              ]
+                                          }
+                                      },
+                                      {
+                                          "node": {
+                                              "metafields": {
+                                                  "nodes": [
+                                                      {
+                                                          "key": "variant_length",
+                                                          "value": "{\"value\":200.0,\"unit\":\"CENTIMETERS\"}"
+                                                      },
+                                                      {
+                                                          "key": "variant_width",
+                                                          "value": "{\"value\":300.0,\"unit\":\"CENTIMETERS\"}"
+                                                      }
+                                                  ]
+                                              },
+                                              "selectedOptions": [
+                                                  {
+                                                      "value": "2000MMx3000MM"
+                                                  }
+                                              ]
+                                          }
+                                      }
+                                  ]
+                              }
+                          },
+                          "cursor": "eyJsYXN0X2lkIjo0ODg3NDM0MjY0NzExLCJsYXN0X3ZhbHVlIjo0ODg3NDM0MjY0NzExfQ=="
+                      }
+                  ]
+              }
+          }
+      }
+    {% endcapture %}
+
+    {% assign result = query | parse_json %}
+
+    {% assign products = result.data.products.edges | map: 'node' %}
+
+  {% endif %}
+
+  
+
+{% elsif event.topic == 'mechanic/user/product'%}
+  
+
+  {% capture query %}
+    query {
+      product (id: {{ event.data.admin_graphql_api_id | json }}){
+            id
+            title
+            options {
+              name
+              values
+            }
+            metafields(first:15, namespace:"custom"){
+              nodes {
+                key
+                value
+              }
+            }
+            variants (first: 20){
+              edges {
+                node {
+                  metafields(first: 10){
+                    nodes{
+                      key
+                      value
+                    }
+                  }
+                  selectedOptions {
+                    value
+                  }
+                }
+              }
+              
+            }
+          }
+        }
+  {% endcapture %}
+
+  {% assign result = query | shopify %}
+
+  
+  {% assign products[0] = result.data.product %}
+
+{% else %}
+  {% for item in event.data %}
+
+
+    {% capture query %}
+      query {
+        product (id: {{ item.admin_graphql_api_id | json }}){
+              id
+              title
+              options {
+                name
+                values
+              }
+              metafields(first:15, namespace:"custom"){
+                nodes {
+                  key
+                  value
+                }
+              }
+              variants (first: 20){
+                edges {
+                  node {
+                    metafields(first: 10){
+                      nodes{
+                        key
+                        value
+                      }
+                    }
+                    selectedOptions {
+                      value
+                    }
+                  }
+                }
+                
+              }
+            }
+          }
+    {% endcapture %}
+
+    {% assign result = query | shopify %}
+
+    
+    {% assign products[products.size] = result.data.product %}
+
+  {% endfor %}
+  
+
+{% endunless %}
+
+
+{% for product in products %}
+
+  {% assign dims_hash = hash %}
+  {% assign metafields = hash %}
+
+  
+  {% assign list_of_dims = array %}
+  {% assign id = product.id %}
+  
+
+  {% for option in product.options %}
+    {% if option.name == 'Size' %}
+      {% assign option_values = option.values %}
+    {% endif %}
+  {% endfor %}
+
+  {% for item in product.metafields.nodes %}
+    {% if item.key contains 'height' and item.key != 'product_height' %}
+      {% assign dims_hash[item.key] = item.value | parse_json %}
+    {% else %}
+      {% assign slice = item.key | slice: 0, 7 %}
+      {% if slice == 'product' %}
+        {% assign dims_hash[item.key] = item.value | parse_json %}
+      {% else %}
+        {% assign metafields[item.key] = item.value %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {% if option_values != blank %}
+
+    {% assign variants = product.variants.edges | map: 'node' %}
+    {% assign item_dims = hash %}
+    {% assign val_dims = hash%}
+
+    {% for value in option_values %}
+      {% for variant in variants %}
+        {% assign list = variant.selectedOptions | map: 'value' %}
+        {% if list contains value %}
+
+          {% for item in variant.metafields.nodes %}
+            {% assign slice = item.key | slice: 0, 7 %}
+            {% if slice == 'variant' %}
+              {% assign item_dims[item.key] = item.value | parse_json %}
+            {% else %}
+              {% assign metafields[item.key] = item.value %}
+            {% endif %}
+          {% endfor %}
+
+        {% endif %}
+      {% endfor %}
+
+      {% assign val_dims[value] = item_dims %}
+    {% endfor %}
+
+    
+    
+
+    {% for item in option_values %}
+    
+      {% assign dims_keys = val_dims[item] | keys %}
+      {% assign dims = val_dims[item] %}
+      {% assign val_item_dims = array %}
+      {% assign name = item | append: ' - '%}
+
+      {% for key in dims_keys %}
+        {% assign prep = key | replace: '_', ' ' | remove: 'variant ' | capitalize | append: ': '%}
+        
+        {% if dims[key].unit == 'CENTIMETERS'%}
+          {% assign value = dims[key].value | times: 10 | ceil %}
+        {% else %}
+          {% assign value = dims[key].value | ceil %}
+        {% endif %}
+        {% assign val_item_dims[val_item_dims.size] = prep | append: value | append: 'mm' %}
+      {% endfor %}
+      {% assign list_of_dims[list_of_dims.size] = val_item_dims | join: ', ' | prepend: name %}
+
+    {% endfor %}
+
+  {% endif%}
+
+  {% assign dims_keys = dims_hash | keys%}
+
+    {% for item in dims_keys %}
+      {% assign prep = item | replace: '_', ' ' | remove: 'product ' | capitalize | append: ': '%}
+      {% if dims_hash[item].unit == 'CENTIMETERS'%}
+        {% assign value = dims_hash[item].value | times: 10 | ceil %}
+      {% else %}
+        {% assign value = dims_hash[item].value | ceil %}
+      {% endif %}
+      {% assign list_of_dims[list_of_dims.size] = prep | append: value | append: 'mm' %}
+    {% endfor %}
+
+  {% if product.title contains "Lamp" %}
+
+    {% capture meta_query%}
+      query {
+        product(id: {{product.id | json }}){
+          metafields(first: 5, namespace:"lamp"){
+            nodes {
+              key
+              value
+            }
+          }
+        }
+      }
+    {% endcapture %}
+
+    {% assign result = meta_query | shopify %}
+
+
+  {% endif %}
+
+  {% if metafields['materials'] %}
+    {% assign materials = metafields['materials'] %}
+  {% endif %}
+
+  {% if metafields['on_display'] == true %}
+    {% assign display = 'This item is currently on display in our Coburg Showroom'%}
+  {% else %}
+    {% assign display = 'This item is Not currently on display in our Coburg Showroom'%}
+  {% endif %}
+
+
+  {% capture rich_text_json %}
+  {
+      "type" : "root",
+      "children": [
+        {
+          "type": "paragraph",
+          "children": [
+            {
+              "type": "text",
+              "value": "Dimensions:",
+              "bold": true
+            }
+          ]
+        },
+          {
+              "listType": "unordered",
+              "type": "list",
+              "children": [{%for item in list_of_dims %}
+                  {
+                      "type": "list-item",
+                      "children": [
+                          {
+                              "type": "text",
+                              "value": {{item | json}}
+                          }
+                      ]
+                  }{% unless forloop.last %},{% endunless%}{% endfor %}
+              ]  
+          }{% if metafields["product_seat_height"]%},
+          {
+            "type": "paragraph",
+              "children": [
+                  {
+                      "type": "text",
+                      "value": "Seat Height: ",
+                      "bold": true
+                  },
+                  {
+                      "type": "text",
+                      "value": {{ metafields["product_seat_height"] }}
+                  }
+              ]
+          }
+          {% endif %}{% if materials %},
+          {
+              "type": "paragraph",
+              "children": [
+                  {
+                      "type": "text",
+                      "value": "Materials: ",
+                      "bold": true
+                  },
+                  {
+                      "type": "text",
+                      "value": {{ materials | json}}
+                  }
+              ]
+          }{% endif %} {%if metafields["lamp_body_material_"]%},
+          {
+            "type": "paragraph",
+              "children": [
+                  {
+                      "type": "text",
+                      "value": "Lamp Body Materials: ",
+                      "bold": true
+                  },
+                  {
+                      "type": "text",
+                      "value": {{ metafields["lamp_body_material_"] | json}}
+                  }
+              ]
+          }
+          {% endif %}{% if metafields["lamp_shade_material_"]%},
+          {
+            "type": "paragraph",
+              "children": [
+                  {
+                      "type": "text",
+                      "value": "Lamp Shade Materials: ",
+                      "bold": true
+                  },
+                  {
+                      "type": "text",
+                      "value": {{ metafields["lamp_shade_material_"] | json}}
+                  }
+              ]
+          }
+          {% endif %}{% if metafields["wattage"]%},
+          {
+            "type": "paragraph",
+              "children": [
+                  {
+                      "type": "text",
+                      "value": "Wattage: ",
+                      "bold": true
+                  },
+                  {
+                      "type": "text",
+                      "value": {{ metafields["wattage"] | json}}
+                  }
+              ]
+          }
+          {% endif %}{% if metafields["voltage_"]%},
+          {
+            "type": "paragraph",
+              "children": [
+                  {
+                      "type": "text",
+                      "value": "Voltage: ",
+                      "bold": true
+                  },
+                  {
+                      "type": "text",
+                      "value": {{ metafields["voltage_"] | json}}
+                  }
+              ]
+          }
+          {% endif %}{% if metafields["bulbs"]%},
+          {
+            "type": "paragraph",
+              "children": [
+                  {
+                      "type": "text",
+                      "value": "Required Bulbs: ",
+                      "bold": true
+                  },
+                  {
+                      "type": "text",
+                      "value": {{ metafields["bulbs"] | json}}
+                  }
+              ]
+          }
+          {% endif %}{% if display%},
+          {
+              "type": "paragraph",
+              "children": [
+                  {
+                      "type": "text",
+                      "value": {{display | json }},
+                      "italic": true
+                  }
+              ]
+          }{% endif %}
+
+      ]
+  }
+  {% endcapture %}
+
+  {% log list_of_dims, product.title %}
+
+  {% action 'shopify' %}
+    mutation {
+      metafieldsSet(
+        metafields: [
+          {
+            ownerId: {{ id | json }},
+            namespace: "website",
+            key: "prod_page_specs",
+            value: {{ rich_text_json | json}},
+            type: "rich_text_field"
+          },
+          {
+            ownerId: {{ id | json }},
+            namespace: "website",
+            key: "tab_two_title",
+            value: "Specifications",
+            type: "single_line_text_field"
+          }
+        ]
+      ) {
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  {% endaction %}
+
+{% endfor %}
+
+
+

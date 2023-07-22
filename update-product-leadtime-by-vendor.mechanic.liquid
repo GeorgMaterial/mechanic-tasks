@@ -1,0 +1,101 @@
+{% comment %}
+    Subscriptions:
+        mechanic/user/product
+{% endcomment %}
+
+{% comment %}
+{{ options.default_lead_time_group__required }}
+{{ options.vendors_and_their_specific_groups__required_keyval }}
+{{ options.lead_time_info_in_order_of_group__array_required }}
+{{ options.metafield_namespace__required  }}
+{{ options.metafield_key__required  }}
+{% endcomment %}
+
+{% assign defaultGroup = options.default_lead_time_group__required %}
+{% assign vendorGroups = options.vendors_and_their_specific_groups__required_keyval %}
+{% assign infoArray = options.lead_time_info_in_order_of_group__array_required %}
+
+{% assign product = event.data %}
+
+{% assign variants = product.variants  %}
+
+{% assign edit_lead_time = false %}
+  
+{% for variant in variants %}
+  {% if variant.inventory_policy != 'deny'%}
+    {% assign edit_lead_time = true %}
+    {% break %}
+  {% endif %}
+{% endfor %}
+
+{% assign vendor_keys = vendorGroups | keys%}
+
+{% log vendorGroups %}
+{% log infoArray %}
+
+{% if event.data.vendor != blank and edit_lead_time %}
+  {% if vendor_keys contains event.data.vendor %}
+    {% assign index = vendorGroups[event.data.vendor] | minus: 1 %}
+    
+  {% else %}
+    {% assign index = defaultGroup | minus: 1 %}
+  {% endif %}
+
+  {% assign info = infoArray[index]%}
+
+  {% action 'shopify' %}
+    mutation {
+      metafieldsSet(
+        metafields: [
+          {
+            ownerId: {{ event.data.admin_graphql_api_id | json }},
+            namespace: {{ options.metafield_namespace__required | json }},
+            key: {{ options.metafield_key__required | json }},
+            value: {{ info | json}},
+            type: "single_line_text_field"
+          },
+          {
+            ownerId: {{ event.data.admin_graphql_api_id | json }},
+            namespace: "website",
+            key: "prod_page_tab_three",
+            value: "gid://shopify/OnlineStorePage/82117460103",
+            type: "page_reference"
+          }
+        ]
+      ) {
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  {% endaction %}
+
+
+
+{% endif %}
+
+{% assign new_handle = product.title | handleize %}
+
+{% if product.handle != new_handle %}
+  {% action 'shopify' %}
+    mutation {
+      productUpdate (input: {
+        id: {{ product.admin_graphql_api_id | json }},
+        handle: {{ new_handle | json }},
+        redirectNewHandle: true
+      }){
+        product {
+          title
+          handle
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  {% endaction %}
+{% endif %}
+
+

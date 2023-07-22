@@ -1,0 +1,329 @@
+{% comment %}
+    Subscriptions:
+        user/banma_prod/inv_upd
+{% endcomment %}
+
+{% assign location_id = options.location_id__required | prepend: "gid://shopify/Location/"%}
+{% assign item_ids = event.data.inventory %}
+{% assign inventoryItems = array %}
+{% assign edit_hash = hash %}
+
+{% for item in item_ids %}
+  {% capture query %}
+    query {
+      inventoryItem(id: {{ item | json }}){
+        id
+        inventoryLevels(first:2){
+          nodes {
+            location {
+              id
+            }
+            quantities( names: ["available"]){
+              quantity
+            }
+          }
+        }
+      }
+    }
+
+  {% endcapture %}
+
+  {% assign result = query | shopify %}
+
+  {% assign inventoryItems[inventoryItems.size] = result.data.inventoryItem %}
+{% endfor %}
+
+{% if event.preview %}
+
+{% capture new_json%}
+[
+  {
+    "id": "gid://shopify/InventoryItem/42588948332679",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gid://shopify/InventoryItem/42588948365447",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gid://shopify/InventoryItem/42588948398215",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gid://shopify/InventoryItem/42588948430983",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gid://shopify/InventoryItem/42588948463751",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gid://shopify/InventoryItem/42588948496519",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gid://shopify/InventoryItem/42588948529287",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gid://shopify/InventoryItem/42588948562055",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gid://shopify/InventoryItem/42588948594823",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gid://shopify/InventoryItem/42588948627591",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gid://shopify/InventoryItem/42588948660359",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gid://shopify/InventoryItem/42588948693127",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gid://shopify/InventoryItem/42588948725895",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gid://shopify/InventoryItem/42588948758663",
+    "inventoryLevels": {
+      "nodes": [
+        {
+          "location": {
+            "id": "gid://shopify/Location/60933668999"
+          },
+          "quantities": [
+            {
+              "quantity": 1
+            }
+          ]
+        }
+      ]
+    }
+  }
+]
+
+{% endcapture %}
+
+{% assign inventoryItems = new_json | parse_json %}
+{% endif %}
+
+
+
+{% for item in inventoryItems %}
+  {% assign inv_hash = hash %}
+  {% assign qty = item.inventoryLevels.nodes[0].quantities[0].quantity %}
+  {% assign inv_hash["qty"] = 0 | minus: qty %}
+  {% assign inv_hash['location'] = item.inventoryLevels.nodes[0].location.id %}
+  {% assign edit_hash[item.id] = inv_hash %}
+{% endfor %}
+
+
+
+{% assign item_ids = edit_hash | keys %}
+
+{% if edit_hash != blank %}
+
+  {% action 'shopify' %}
+    mutation {
+      inventoryAdjustQuantities (input: {
+        reason: "correction"
+        name: "available"
+        changes: [
+        {% for item in item_ids %}
+        {
+          delta: {{ edit_hash[item].qty | json }}
+          inventoryItemId: {{ item | json }}
+          locationId: {{ edit_hash[item].location | json }}
+        }{% if forloop.last != true %},{% endif %}
+      {% endfor %}]
+      })
+      {
+        inventoryAdjustmentGroup {
+          reason
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  {% endaction %}
+
+
+
+{% endif %}

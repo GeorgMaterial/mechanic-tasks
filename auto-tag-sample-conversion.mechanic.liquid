@@ -1,0 +1,157 @@
+{% comment %}
+ Subscriptions:
+    shopify/orders/create
+    mechanic/user/order
+    shopify/orders/edited
+{% endcomment %}
+
+{% unless event.topic contains 'edited' %}
+{% assign order_id = event.data.admin_graphql_api_id %}
+{% assign order_name = event.data.name %}
+{% assign order_note = event.data.note | upcase %}
+{% assign line_items = event.data.line_items %}
+{% assign customer_id = event.data.customer.id | prepend: 'gid://shopify/Customer/'%}
+{% assign item_names = line_items | map: "title"%}
+{%capture properties%}{% for item in line_items %}{%for prop_val in item.properties %}{{ prop_val.value | upcase }},{% endfor %}{% endfor %}{%endcapture%}
+
+{% else %}
+{% assign order_id = event.data.order_edit.order_id | prepend: "gid://shopify/Order/" %}
+
+{% capture query %}
+  query {
+    order (id: {{ order_id | json }} ){
+      name
+      note
+      lineItems (first: 20){
+        nodes {
+          title
+          customAttributes{  
+            key
+            value
+          }
+        }
+      }
+      customer {
+        id
+      }
+    }
+  }
+{% endcapture %}
+
+{% assign result = query | shopify %}
+
+{% log result.data.order.lineItems %}
+
+{% assign order = result.data.order%}
+{% assign line_items = order.lineItems.nodes %}
+{%capture properties%}{% for item in line_items %}{%for prop_val in item.customAttributes %}{{ prop_val.value | upcase }},{% endfor %}{% endfor %}{%endcapture%}
+
+{% assign order_name = order.name %}
+{% assign order_note = order.note | upcase %}
+
+{% assign customer_id = order.customer.id %}
+{% assign item_names = line_items | map: "title"%}
+
+
+{% endunless %}
+
+{% assign tag_to_apply = options.order_tag_to_apply__required %}
+{% assign namespace = options.metafield_to_check_namespace__required %}
+{% assign key = options.metafield_to_check_key__required %}
+
+
+
+{% assign properties = properties | split: "," %}
+{% capture query %}
+query {
+  customer(id: {{ customer_id | json }}) {
+    metafield(namespace:{{namespace | json}} key:{{key | json}}) {
+      value
+    }
+  }
+}
+{% endcapture %}
+
+{% assign result = query | shopify %}
+
+
+{% if event.preview %}
+{% capture result_json %}
+  {
+   "data": {
+      "customer": {
+        "metafield": {
+          "value": "Venice-34, Nowe-03"
+        }
+      }
+    }   
+  }
+ {% endcapture %}
+
+ {% assign result = result_json | parse_json %}
+{%endif%}
+
+{% assign meta_value = result.data.customer.metafield.value | split: ", "%}
+{% assign just_samples = false %}
+
+{% for item in item_names %}
+{% if item != "Fabric Samples" %}
+  {% assign just_samples = false %}
+  {% break %}
+{% else %}
+  {% assign just_samples = true%}
+{% endif %}
+{% endfor %}
+
+{% assign order_qualifies = false %}
+
+{% if meta_value != blank %}
+  {% for item_s in meta_value %}
+    {% assign item = item_s | upcase%}
+    {% if properties != blank and properties contains item %}
+      {% assign order_qualifies = true %}
+      {% log "line item property matches sample found in metafield."%}
+      {% log item %}
+      {% assign swatch = item %}
+      {% break %}
+    {% elsif order_note != blank and order_note contains item %}
+      {% assign order_qualifies = true %}
+      {% log "order note matches sample found in order metafield."%}
+      {% log item %}
+      {% assign swatch = item %}
+      {% break %}
+    {% endif %}
+  {%endfor%}
+{% else %}
+  {% log "Metafield is empty." %}
+{% endif %}
+
+
+{% if just_samples == true %}
+{%assign order_qualifies = false%}
+{% log "it's a sample order babes"%}
+{% log item_names %}
+{% endif %}
+
+
+{% if order_qualifies != true %}
+  {% log "No valid samples ordered/found that match metafield." %}
+  {% log meta_value: meta_value, properties: properties, order_note: order_note %}
+{% else %}
+  {% action "shopify" %}
+      mutation {
+          tagsAdd(
+              id: {{ order_id | json }}
+              tags: {{tag_to_apply | json}}
+          
+          ) {
+              userErrors {
+                  field
+                  message
+              }
+          }
+      }
+
+  {% endaction %}
+  {% log customer_id, swatch %}
+{% endif %}

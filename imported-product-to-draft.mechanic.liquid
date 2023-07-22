@@ -1,0 +1,35 @@
+{% comment %}
+    Subscriptions:
+        shopify/products/create
+{% endcomment %}
+{% if event.data.status == 'active' %}
+  {% action 'shopify' %}
+    
+      mutation {
+        productChangeStatus(
+          productId: {{ event.data.admin_graphql_api_id | json }}
+          status: DRAFT
+        ){
+          product {
+            id
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    
+  {% endaction%}
+
+
+  {% action 'event'%}
+    {
+      "topic":"user/banma_prod/import",
+      "data":{
+        "id": {{ event.data.admin_graphql_api_id | json }}
+      }
+    }
+  {% endaction %}  
+  
+{% endif %}

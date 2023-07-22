@@ -1,0 +1,60 @@
+{% comment %}
+    Subscriptions: 
+        mechanic/user/order
+        user/deposit_link_metafield/update
+{% endcomment %}
+
+{% assign meta_namespaces = options.metafield_namespace_and_key__keyval__required | keys %}
+{% assign meta_keys = options.metafield_namespace_and_key__keyval__required | values %}
+
+{% unless event.topic contains 'user/deposit_link_metafield'%}
+  {% assign api_id = "gid://shopify/Order/" | append: event.data.id %}
+{% else %}
+  {% assign api_id = event.data.order_id %}
+{% endunless %}
+
+{% log api_id %}
+
+{% capture query %}
+  query {
+    order(id: {{ api_id | json }}){ 
+      paymentCollectionDetails{
+        additionalPaymentCollectionUrl
+      }
+    }
+  }
+{% endcapture %}
+
+{% assign result = query | shopify %}
+
+{% assign url = result.data.order.paymentCollectionDetails.additionalPaymentCollectionUrl %}
+
+{% log url %}
+
+{% if url != blank %}
+  {% for keyval in meta_namespaces %}
+    {% action 'shopify'%}
+      mutation metafieldsSet{
+        metafieldsSet(
+          metafields: [
+            {
+              key: {{meta_keys[forloop.index0] | json}},
+              namespace: {{ keyval | json }},
+              ownerId: {{ api_id | json }},
+              value: {{ url | json }}
+            }
+        ]) {
+          metafields {
+            namespace
+            key
+            value
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    {% endaction %}
+  {%endfor%}
+{% endif %}
